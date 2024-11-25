@@ -3,10 +3,15 @@
 declare(strict_types=1);
 
 const MASTER_PASSWORD_HASH = '$argon2i$v=19$m=2048,t=4,p=3$akxIa0p0Vk9QR01YekhlZw$w67NbEQkciuCDmc65CiKCgSEI1XKyQOHdIBLIrH2itA';
-const PASSWORDS_FILENAME = 'passwords.json';
+const PASSWORDS_FILENAME = 'passwords';
 
 loginMenu();
-crudMenu();
+
+while (true) {
+    if (!crudMenu()){
+        closeApplication();
+    }
+}
 
 function loginMenu(): void
 {
@@ -31,7 +36,7 @@ function loginMenu(): void
     system('clear');
 }
 
-function crudMenu(): void
+function crudMenu(): bool
 {
     echo 'You are logged in'.PHP_EOL;
     echo '[1] Find password by login'.PHP_EOL;
@@ -63,10 +68,16 @@ function crudMenu(): void
     }
 
     if ($answer === '0') {
-        closeApplication();
+        return false;
     }
 
     saveDataToFile($fileData);
+
+    readline('Press any key to continue...');
+
+    system('clear');
+
+    return true;
 }
 
 function findPasswordByLogin(array $fileData): void
@@ -82,7 +93,7 @@ function findPasswordByLogin(array $fileData): void
 
 function addNewPasswordAndLogin(array $fileData): array
 {
-    $login = readline('Enter login: ');
+    $login = strtolower(readline('Enter login: '));
     $password = readline('Enter password: ');
 
     $fileData[$login] = $password;
@@ -94,7 +105,7 @@ function addNewPasswordAndLogin(array $fileData): array
 
 function removePasswordByLogin(array $fileData): array
 {
-    $login = readline('Enter login: ');
+    $login = strtolower(readline('Enter login: '));
 
     if (array_key_exists($login, $fileData)) {
         unset($fileData[$login]);
