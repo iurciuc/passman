@@ -2,8 +2,13 @@
 
 declare(strict_types=1);
 
-const MASTER_PASSWORD_HASH = '$argon2i$v=19$m=2048,t=4,p=3$akxIa0p0Vk9QR01YekhlZw$w67NbEQkciuCDmc65CiKCgSEI1XKyQOHdIBLIrH2itA';
+require 'Enum/CommandListInterface.php';
+require 'Enum/PasswordCrudCommand.php';
+require 'Enum/CommonCommands.php';
+
 const PASSWORDS_FILENAME = 'passwords';
+
+$fileHandle = null;
 
 loginMenu();
 
@@ -17,20 +22,16 @@ function loginMenu(): void
 {
     system('clear');
 
-    echo 'Welcome to the password manager'.PHP_EOL;
-    echo '[1] Enter master password'.PHP_EOL;
-    echo '[0] Exit'.PHP_EOL;
+    if (!file_exists(PASSWORDS_FILENAME)) {
+        echo 'There is no passwords storage, creating a new one'.PHP_EOL;
 
-    $answer = ask(['1', '0']);
-
-    if ($answer === '1') {
+        while(empty($GLOBALS['password'] = readline('Enter a new master password: '))) {
+            echo 'Password should be empty!' . PHP_EOL;
+        }
+    } else {
         do {
             $GLOBALS['password'] = readline('Enter master password: ');
-        } while (!isMasterPasswordOk($GLOBALS['password']) && print('Master password is incorrect'.PHP_EOL));
-    }
-
-    if ($answer === '0') {
-        closeApplication();
+        } while (!isMasterPasswordOk() && print('Master password is incorrect'.PHP_EOL));
     }
 
     system('clear');
@@ -38,40 +39,15 @@ function loginMenu(): void
 
 function crudMenu(): bool
 {
-    echo 'You are logged in'.PHP_EOL;
-    echo '[1] Find password by login'.PHP_EOL;
-    echo '[2] Add new  password and login'.PHP_EOL;
-    echo '[3] Remove password by login'.PHP_EOL;
-    echo '[4] Print all logins'.PHP_EOL;
-    echo '[0] Exit'.PHP_EOL;
-
-    $answer = ask(['1', '2', '3', '4', '0']);
+    $answer = menu(
+        'You are logged in',
+        PasswordCrudCommand::cases()
+    );
 
     system('clear');
 
-    $fileData = readPasswordsFile();
-
-    if ($answer === '1') {
-        findPasswordByLogin($fileData);
-    }
-
-    if ($answer === '2') {
-        $fileData = addNewPasswordAndLogin($fileData);
-    }
-
-    if ($answer === '3') {
-        $fileData = removePasswordByLogin($fileData);
-    }
-
-    if ($answer === '4') {
-        printAllLogins($fileData);
-    }
-
-    if ($answer === '0') {
-        return false;
-    }
-
-    saveDataToFile($fileData);
+    $callback = resolve_action($answer);
+    $callback();
 
     readline('Press any key to continue...');
 
@@ -80,8 +56,21 @@ function crudMenu(): bool
     return true;
 }
 
-function findPasswordByLogin(array $fileData): void
+function resolve_action(CommandListInterface $action): callable
 {
+    return match ($action) {
+        CommonCommands::EXIT => closeApplication(...),
+        PasswordCrudCommand::SEARCH => searchPasswordByLogin(...),
+        PasswordCrudCommand::NEW => addNewPasswordAndLogin(...),
+        PasswordCrudCommand::REMOVE => removePasswordByLogin(...),
+        PasswordCrudCommand::LIST => printAllLogins(...),
+    };
+}
+
+function searchPasswordByLogin(): void
+{
+    $fileData = readPasswordsFile();
+
     $login = strtolower(readline('Enter login: '));
 
     if (array_key_exists($login, $fileData)) {
@@ -91,8 +80,10 @@ function findPasswordByLogin(array $fileData): void
     }
 }
 
-function addNewPasswordAndLogin(array $fileData): array
+function addNewPasswordAndLogin(): void
 {
+    $fileData = readPasswordsFile();
+
     $login = strtolower(readline('Enter login: '));
     $password = readline('Enter password: ');
 
@@ -100,11 +91,13 @@ function addNewPasswordAndLogin(array $fileData): array
 
     echo 'Password added'.PHP_EOL;
 
-    return $fileData;
+    saveDataToFile($fileData);
 }
 
-function removePasswordByLogin(array $fileData): array
+function removePasswordByLogin(): void
 {
+    $fileData = readPasswordsFile();
+
     $login = strtolower(readline('Enter login: '));
 
     if (array_key_exists($login, $fileData)) {
@@ -114,30 +107,45 @@ function removePasswordByLogin(array $fileData): array
         echo 'Login not found'.PHP_EOL;
     }
 
-    return $fileData;
+    saveDataToFile($fileData);
 }
 
-function printAllLogins(array $fileData): void
+function printAllLogins(): void
 {
+    $fileData = readPasswordsFile();
+
     foreach ($fileData as $login => $password) {
         echo $login.PHP_EOL;
     }
 }
 
-function ask(array $options): string
+/**
+ * @param string $title
+ * @param CommandListInterface[] $cases
+ *
+ * @return CommandListInterface
+ */
+function menu(string $title, array $cases): CommandListInterface
 {
-    $option = readline('Choose your option: ');
+    $cases[] = CommonCommands::EXIT;
 
-    while (true) {
-        if (in_array($option, $options, true)) {
-            break;
+    echo $title . PHP_EOL;
+
+    foreach ($cases as $case) {
+        echo '[' . $case->value . '] ' . $case->getLabel() . PHP_EOL;
+    }
+
+    while ($option = readline('Choose your option: ')) {
+        foreach ($cases as $case) {
+            if ($case->value === $option) {
+                return $case;
+            }
         }
 
         echo 'Invalid option' . PHP_EOL;
-        $option = readline('Choose your option: ');
     }
 
-    return $option;
+    return CommonCommands::EXIT;
 }
 
 function closeApplication(): void
@@ -146,9 +154,15 @@ function closeApplication(): void
     exit();
 }
 
-function isMasterPasswordOk(string $password): bool
+function isMasterPasswordOk(): bool
 {
-    return password_verify($password, MASTER_PASSWORD_HASH);
+    try {
+        readPasswordsFile();
+    } catch (Throwable) {
+        return false;
+    }
+
+    return true;
 }
 
 function readPasswordsFile(): array
