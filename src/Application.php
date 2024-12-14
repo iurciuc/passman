@@ -14,16 +14,12 @@ use JetBrains\PhpStorm\NoReturn;
 use RangeException;
 use Throwable;
 
-class Application
+readonly class Application
 {
-    private const string PASSWORDS_FILENAME = 'passwords';
-
-    private ?string $password;
-
     public function __construct(
-        private readonly PasswordsFileService $passwordsFileService
+        private PasswordsFileService $passwordsFileService,
+        private Router $router,
     ) {
-        $this->password = null;
     }
 
     public function run(): bool
@@ -31,9 +27,7 @@ class Application
         $this->loginMenu();
 
         while (true) {
-            if (!$this->crudMenu()){
-                $this->closeApplication();
-            }
+            $this->crudMenu();
         }
     }
 
@@ -44,12 +38,14 @@ class Application
         if (!$this->passwordsFileService->fileExists()) {
             echo 'There is no passwords storage, creating a new one'.PHP_EOL;
 
-            while(empty($this->password = readline('Enter a new master password: '))) {
+            while(empty($password = readline('Enter a new master password: '))) {
                 echo 'Password should be empty!' . PHP_EOL;
             }
+
+            $this->passwordsFileService->setPassword($password);
         } else {
             do {
-                $this->password = readline('Enter master password: ');
+                $this->passwordsFileService->setPassword(readline('Enter master password: '));
             } while (!$this->isMasterPasswordOk() && print('Master password is incorrect'.PHP_EOL));
         }
 
@@ -65,77 +61,14 @@ class Application
 
         system('clear');
 
-        $callback = $this->resolve_action($answer);
-        $callback();
+        $action = $this->router->getRouteForCommand($answer);
+        (new $action($this->passwordsFileService))();
 
         readline('Press any key to continue...');
 
         system('clear');
 
         return true;
-    }
-
-    private function resolve_action(CommandListInterface $action): callable
-    {
-        return match ($action) {
-            CommonCommands::EXIT => $this->closeApplication(...),
-            PasswordCrudCommand::SEARCH => $this->searchPasswordByLogin(...),
-            PasswordCrudCommand::NEW => $this->addNewPasswordAndLogin(...),
-            PasswordCrudCommand::REMOVE => $this->removePasswordByLogin(...),
-            PasswordCrudCommand::LIST => $this->printAllLogins(...),
-        };
-    }
-
-    private function searchPasswordByLogin(): void
-    {
-        $fileData = $this->passwordsFileService->readPasswordsFile($this->password);
-
-        $login = strtolower(readline('Enter login: '));
-
-        if (array_key_exists($login, $fileData)) {
-            echo 'Password: '.$fileData[$login].PHP_EOL;
-        } else {
-            echo 'Login not found'.PHP_EOL;
-        }
-    }
-
-    private function addNewPasswordAndLogin(): void
-    {
-        $fileData = $this->passwordsFileService->readPasswordsFile($this->password);
-
-        $login = strtolower(readline('Enter login: '));
-        $password = readline('Enter password: ');
-
-        $fileData[$login] = $password;
-
-        echo 'Password added'.PHP_EOL;
-
-        $this->passwordsFileService->saveDataToFile($fileData, $this->password);
-    }
-
-    private function removePasswordByLogin(): void
-    {
-        $fileData = $this->passwordsFileService->readPasswordsFile($this->password);
-
-        $login = strtolower(readline('Enter login: '));
-
-        if (array_key_exists($login, $fileData)) {
-            unset($fileData[$login]);
-            echo 'Password removed'.PHP_EOL;
-        } else {
-            echo 'Login not found'.PHP_EOL;
-        }
-
-        $this->passwordsFileService->saveDataToFile($fileData, $this->password);
-    }
-
-    private function printAllLogins(): void
-    {
-        $fileData = $this->passwordsFileService->readPasswordsFile($this->password);
-
-        foreach ($fileData as $login => $password) {
-            echo $login.PHP_EOL;
-        }
     }
 
     /**
@@ -167,16 +100,11 @@ class Application
         return CommonCommands::EXIT;
     }
 
-    private function closeApplication(): void
-    {
-        echo 'Goodbye';
-        exit();
-    }
 
     private function isMasterPasswordOk(): bool
     {
         try {
-            $this->passwordsFileService->readPasswordsFile($this->password);
+            $this->passwordsFileService->readPasswordsFile();
         } catch (Throwable) {
             return false;
         }
