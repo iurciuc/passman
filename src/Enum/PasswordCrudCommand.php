@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace App\Enum;
+
 enum PasswordCrudCommand: string implements CommandListInterface
 {
     case LIST = 'l';

@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
-interface CommandListInterface {
+namespace App\Enum;
+
+interface CommandListInterface
+{
     public function getLabel(): string;
 }
