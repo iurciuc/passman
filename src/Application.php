@@ -7,13 +7,24 @@ namespace App;
 use App\Enum\CommandListInterface;
 use App\Enum\CommonCommands;
 use App\Enum\PasswordCrudCommand;
+use App\Service\FileEncryptorService;
+use App\Service\PasswordsFileService;
 use Exception;
+use JetBrains\PhpStorm\NoReturn;
 use RangeException;
 use Throwable;
 
 class Application
 {
     private const string PASSWORDS_FILENAME = 'passwords';
+
+    private ?string $password;
+
+    public function __construct(
+        private readonly PasswordsFileService $passwordsFileService
+    ) {
+        $this->password = null;
+    }
 
     public function run(): bool
     {
@@ -26,26 +37,26 @@ class Application
         }
     }
 
-    function loginMenu(): void
+    private function loginMenu(): void
     {
         system('clear');
 
-        if (!file_exists(self::PASSWORDS_FILENAME)) {
+        if (!$this->passwordsFileService->fileExists()) {
             echo 'There is no passwords storage, creating a new one'.PHP_EOL;
 
-            while(empty($GLOBALS['password'] = readline('Enter a new master password: '))) {
+            while(empty($this->password = readline('Enter a new master password: '))) {
                 echo 'Password should be empty!' . PHP_EOL;
             }
         } else {
             do {
-                $GLOBALS['password'] = readline('Enter master password: ');
+                $this->password = readline('Enter master password: ');
             } while (!$this->isMasterPasswordOk() && print('Master password is incorrect'.PHP_EOL));
         }
 
         system('clear');
     }
 
-    function crudMenu(): bool
+    private function crudMenu(): bool
     {
         $answer = $this->menu(
             'You are logged in',
@@ -64,7 +75,7 @@ class Application
         return true;
     }
 
-    function resolve_action(CommandListInterface $action): callable
+    private function resolve_action(CommandListInterface $action): callable
     {
         return match ($action) {
             CommonCommands::EXIT => $this->closeApplication(...),
@@ -75,9 +86,9 @@ class Application
         };
     }
 
-    function searchPasswordByLogin(): void
+    private function searchPasswordByLogin(): void
     {
-        $fileData = $this->readPasswordsFile();
+        $fileData = $this->passwordsFileService->readPasswordsFile($this->password);
 
         $login = strtolower(readline('Enter login: '));
 
@@ -88,9 +99,9 @@ class Application
         }
     }
 
-    function addNewPasswordAndLogin(): void
+    private function addNewPasswordAndLogin(): void
     {
-        $fileData = $this->readPasswordsFile();
+        $fileData = $this->passwordsFileService->readPasswordsFile($this->password);
 
         $login = strtolower(readline('Enter login: '));
         $password = readline('Enter password: ');
@@ -99,12 +110,12 @@ class Application
 
         echo 'Password added'.PHP_EOL;
 
-        $this->saveDataToFile($fileData);
+        $this->passwordsFileService->saveDataToFile($fileData, $this->password);
     }
 
-    function removePasswordByLogin(): void
+    private function removePasswordByLogin(): void
     {
-        $fileData = $this->readPasswordsFile();
+        $fileData = $this->passwordsFileService->readPasswordsFile($this->password);
 
         $login = strtolower(readline('Enter login: '));
 
@@ -115,12 +126,12 @@ class Application
             echo 'Login not found'.PHP_EOL;
         }
 
-        $this->saveDataToFile($fileData);
+        $this->passwordsFileService->saveDataToFile($fileData, $this->password);
     }
 
-    function printAllLogins(): void
+    private function printAllLogins(): void
     {
-        $fileData = $this->readPasswordsFile();
+        $fileData = $this->passwordsFileService->readPasswordsFile($this->password);
 
         foreach ($fileData as $login => $password) {
             echo $login.PHP_EOL;
@@ -133,7 +144,7 @@ class Application
      *
      * @return CommandListInterface
      */
-    function menu(string $title, array $cases): CommandListInterface
+    private function menu(string $title, array $cases): CommandListInterface
     {
         $cases[] = CommonCommands::EXIT;
 
@@ -156,94 +167,20 @@ class Application
         return CommonCommands::EXIT;
     }
 
-    function closeApplication(): void
+    private function closeApplication(): void
     {
         echo 'Goodbye';
         exit();
     }
 
-    function isMasterPasswordOk(): bool
+    private function isMasterPasswordOk(): bool
     {
         try {
-            $this->readPasswordsFile();
+            $this->passwordsFileService->readPasswordsFile($this->password);
         } catch (Throwable) {
             return false;
         }
 
         return true;
-    }
-
-    function readPasswordsFile(): array
-    {
-        if (!file_exists(self::PASSWORDS_FILENAME)) {
-            return [];
-        }
-
-        $encryptedFileContent = file_get_contents(self::PASSWORDS_FILENAME);
-        $decryptedFileContent = $this->safeDecrypt($encryptedFileContent, $this->computeKey());
-
-        return json_decode($decryptedFileContent, true, 512, JSON_THROW_ON_ERROR);
-    }
-
-    function saveDataToFile(array $fileData): void
-    {
-        $encryptedFileContent = $this->safeEncrypt(json_encode($fileData, JSON_THROW_ON_ERROR), $this->computeKey());
-
-        file_put_contents(self::PASSWORDS_FILENAME, json_encode($encryptedFileContent, JSON_THROW_ON_ERROR));
-    }
-
-    function computeKey(): string
-    {
-        return sodium_crypto_pwhash(
-            SODIUM_CRYPTO_SECRETBOX_KEYBYTES,
-            $GLOBALS['password'],
-            '1234567890abcdef',
-            SODIUM_CRYPTO_PWHASH_OPSLIMIT_INTERACTIVE,
-            SODIUM_CRYPTO_PWHASH_MEMLIMIT_INTERACTIVE
-        );
-    }
-
-    function safeEncrypt(string $message, string $key): string
-    {
-        if (mb_strlen($key, '8bit') !== SODIUM_CRYPTO_SECRETBOX_KEYBYTES) {
-            throw new RangeException('Key is not the correct size (must be 32 bytes).');
-        }
-
-        $nonce = random_bytes(SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
-
-        $cipher = base64_encode(
-            $nonce.
-            sodium_crypto_secretbox(
-                $message,
-                $nonce,
-                $key
-            )
-        );
-        sodium_memzero($message);
-        sodium_memzero($key);
-
-        return $cipher;
-    }
-
-    function safeDecrypt(string $encrypted, string $key): string
-    {
-        $decoded = base64_decode($encrypted);
-        $nonce = mb_substr($decoded, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES, '8bit');
-        $ciphertext = mb_substr($decoded, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES, null, '8bit');
-
-        $plain = sodium_crypto_secretbox_open(
-            $ciphertext,
-            $nonce,
-            $key
-        );
-
-        if (!is_string($plain)) {
-            throw new Exception('Invalid MAC');
-        }
-
-        sodium_memzero($ciphertext);
-        sodium_memzero($key);
-
-        return $plain;
     }
 }
