@@ -26,7 +26,7 @@ readonly class FilesystemPasswordRepository implements PasswordRepositoryInterfa
 
         $all = $this->findAll();
         $all[$login] = $password;
-        $this->saveDataToFile($all);
+        $this->persist($all);
     }
 
     public function remove(string $login): bool
@@ -34,7 +34,7 @@ readonly class FilesystemPasswordRepository implements PasswordRepositoryInterfa
         if ($this->find($login)) {
             $all = $this->findAll();
             unset($all[$login]);
-            $this->saveDataToFile($all);
+            $this->persist($all);
 
             return true;
         }
@@ -53,7 +53,7 @@ readonly class FilesystemPasswordRepository implements PasswordRepositoryInterfa
         return json_decode($jsonContent, true, 512, JSON_THROW_ON_ERROR);
     }
 
-    public function saveDataToFile(array $fileData): void
+    protected function persist(array $fileData): void
     {
         $json = json_encode($fileData, JSON_THROW_ON_ERROR);
 
