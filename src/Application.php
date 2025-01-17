@@ -26,6 +26,7 @@ readonly class Application
         // 2. composer require php-fig/event-dispatcher (PSR-14)
         // 3. Write an implementation of EventDipatcher in Component/EventDispatcherFolder
         // 4. Write a listener provider (an array of listener classes/functions that will handle the events)
+        // -------------------
         // 5. Define kernel event (as objects)
         //  - [ ] requets
         //  - [ ] controller (ContollerEvent::setController(...)) # SIDENOTE: controller = action[], where `action` ~= `controller`
