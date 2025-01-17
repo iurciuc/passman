@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Actions;
+namespace App\Application\Action;
 
 readonly class CloseApplicationAction implements InvokableActionInterface
 {

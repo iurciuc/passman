@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace App;
+namespace App\Application;
 
-use App\Actions\AddNewRecordAction;
-use App\Actions\CloseApplicationAction;
-use App\Actions\PrintAllLoginsAction;
-use App\Actions\RemoveRecordAction;
-use App\Actions\SearchByLoginAction;
-use App\Enum\CommandListInterface;
-use App\Enum\CommonCommands;
-use App\Enum\PasswordCrudCommand;
+use App\Application\Action\AddNewRecordAction;
+use App\Application\Action\CloseApplicationAction;
+use App\Application\Action\PrintAllLoginsAction;
+use App\Application\Action\RemoveRecordAction;
+use App\Application\Action\SearchByLoginAction;
+use App\Application\Command\CommandListInterface;
+use App\Application\Command\CommonCommands;
+use App\Application\Command\PasswordCrudCommand;
 
 class Router
 {

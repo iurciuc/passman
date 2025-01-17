@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Enum;
+namespace App\Application\Command;
 
 enum PasswordCrudCommand: string implements CommandListInterface
 {

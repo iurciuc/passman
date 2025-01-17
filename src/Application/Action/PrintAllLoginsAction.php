@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace App\Actions;
+namespace App\Application\Action;
 
-use App\Service\PasswordsFileService;
+use App\Infrastructure\Adapter\FilesystemPasswordRepository;
 
 readonly class PrintAllLoginsAction implements InvokableActionInterface
 {
     public function __construct(
-        private PasswordsFileService $passwordsFileService
+        private FilesystemPasswordRepository $passwordsFileService
     ) {}
 
     public function __invoke(): void
     {
-        $fileData = $this->passwordsFileService->readPasswordsFile();
+        $fileData = $this->passwordsFileService->findAll();
 
         foreach ($fileData as $login => $password) {
             echo $login.PHP_EOL;

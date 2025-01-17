@@ -2,29 +2,24 @@
 
 declare(strict_types=1);
 
-namespace App\Actions;
+namespace App\Application\Action;
 
-use App\Service\PasswordsFileService;
+use App\Infrastructure\Adapter\FilesystemPasswordRepository;
 
 readonly class RemoveRecordAction implements InvokableActionInterface
 {
     public function __construct(
-        private PasswordsFileService $passwordsFileService
+        private FilesystemPasswordRepository $passwordsFileService
     ) {}
 
     public function __invoke(): void
     {
-        $fileData = $this->passwordsFileService->readPasswordsFile();
-
         $login = strtolower(readline('Enter login: '));
 
-        if (array_key_exists($login, $fileData)) {
-            unset($fileData[$login]);
+        if ($this->passwordsFileService->remove($login)) {
             echo 'Password removed'.PHP_EOL;
         } else {
             echo 'Login not found'.PHP_EOL;
         }
-
-        $this->passwordsFileService->saveDataToFile($fileData);
     }
 }

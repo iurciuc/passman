@@ -4,20 +4,17 @@ declare(strict_types=1);
 
 namespace App;
 
-use App\Enum\CommandListInterface;
-use App\Enum\CommonCommands;
-use App\Enum\PasswordCrudCommand;
-use App\Service\FileEncryptorService;
-use App\Service\PasswordsFileService;
-use Exception;
-use JetBrains\PhpStorm\NoReturn;
-use RangeException;
+use App\Application\Command\CommandListInterface;
+use App\Application\Command\CommonCommands;
+use App\Application\Command\PasswordCrudCommand;
+use App\Application\Router;
+use App\Infrastructure\Adapter\FilesystemPasswordRepository;
 use Throwable;
 
 readonly class Application
 {
     public function __construct(
-        private PasswordsFileService $passwordsFileService,
+        private FilesystemPasswordRepository $passwordsFileService,
         private Router $router,
     ) {
     }
@@ -35,21 +32,9 @@ readonly class Application
     {
         system('clear');
 
-        if (!$this->passwordsFileService->fileExists()) {
-            echo 'There is no passwords storage, creating a new one'.PHP_EOL;
-
-            while(empty($password = readline('Enter a new master password: '))) {
-                echo 'Password should be empty!' . PHP_EOL;
-            }
-
-            $this->passwordsFileService->setPassword($password);
-        } else {
-            do {
-                $this->passwordsFileService->setPassword(readline('Enter master password: '));
-            } while (!$this->isMasterPasswordOk() && print('Master password is incorrect'.PHP_EOL));
+        if (!$this->isMasterPasswordOk()) {
+            die('Access denied!');
         }
-
-        system('clear');
     }
 
     private function crudMenu(): bool
@@ -104,7 +89,7 @@ readonly class Application
     private function isMasterPasswordOk(): bool
     {
         try {
-            $this->passwordsFileService->readPasswordsFile();
+            $this->passwordsFileService->findAll();
         } catch (Throwable) {
             return false;
         }
