@@ -1,0 +1,21 @@
+{
+    "name": "vladislav.iurciuc/passman",
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Vladislav Iurciuc",
+            "email": "vladislav.iurciuc@globant.com"
+        }
+    ],
+    "require": {
+        "psr/event-dispatcher": "^1.0",
+        "ext-readline": "*"
+    },
+    "require-dev": {
+        "roave/security-advisories": "dev-latest"
+    }
+}

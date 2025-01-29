@@ -7,6 +7,8 @@ namespace App;
 use App\Application\Command\CommandListInterface;
 use App\Application\Command\CommonCommands;
 use App\Application\Command\PasswordCrudCommand;
+use App\Application\Input;
+use App\Application\Output;
 use App\Application\Router;
 use App\Infrastructure\Adapter\FilesystemPasswordRepository;
 use Throwable;
@@ -24,12 +26,13 @@ readonly class Application
         // 0. Input + Output
         // 1. composer init
         // 2. composer require php-fig/event-dispatcher (PSR-14)
-        // 3. Write an implementation of EventDipatcher in Component/EventDispatcherFolder
+
+        // 3. Write an implementation of EventDispatcher in Component/EventDispatcherFolder
         // 4. Write a listener provider (an array of listener classes/functions that will handle the events)
         // -------------------
         // 5. Define kernel event (as objects)
-        //  - [ ] requets
-        //  - [ ] controller (ContollerEvent::setController(...)) # SIDENOTE: controller = action[], where `action` ~= `controller`
+        //  - [ ] request
+        //  - [ ] controller (ControllerEvent::setController(...)) # SIDENOTE: controller = action[], where `action` ~= `controller`
         //      - [ ] listener that will identify requested route and will set it on the event that was dispatched
         //  - [ ] exception -> when an exception is thrown and should be handled or application execution should be halted.
         //      - [ ] exception listener that will transform exception into a formated message using $output.
@@ -37,42 +40,46 @@ readonly class Application
         //  - [ ] terminate -> when users tries to exit the application (ex: __destruct)
         //      - [ ] ex: listener that will persist changes in the storage
         //  Next Step: Container
-        $this->loginMenu();
 
-        while (true) {
-            $this->crudMenu();
-            // $output->flush(); // system('clear'), later $this->send($response);
-        }
-    }
+        $input = new Input();
+        $output = new Output();
 
-    // TODO: Move this check to RequestEvent, very similar to AuthMiddleware
-    private function loginMenu(): void
-    {
-        // try to move it to main lifecycle (method run), but use it from $output
-        system('clear');
+        $output->clearScreen();
 
         if (!$this->isMasterPasswordOk()) {
             die('Access denied!');
         }
+
+        while (true) {
+            $this->crudMenu($input, $output);
+
+            if ($output->isEmpty()) {
+                break;
+            }
+
+            $output->flush();
+
+            $input->read('Press any key to continue...');
+            $output->clearScreen();
+        }
+
+        return true;
     }
 
-    private function crudMenu(): bool
+    private function crudMenu(Input $input, Output $output): void
     {
-        $answer = $this->menu(
+        $command = $this->menu(
             'You are logged in',
             PasswordCrudCommand::cases()
         );
 
-        system('clear');
+        $output->clearScreen();
 
-        $action = $this->router->getRouteForCommand($answer);
-        (new $action($this->passwordsFileService))();
+        $input->setCommand($command);
 
-        readline('Press any key to continue...');
+        $action = $this->router->getActionForCommand($command);
 
-        system('clear');
-
-        return true;
+        (new $action($this->passwordsFileService))($input, $output);
     }
 
     /**

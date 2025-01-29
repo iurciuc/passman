@@ -15,7 +15,7 @@ use App\Application\Command\PasswordCrudCommand;
 
 class Router
 {
-    public function getRouteForCommand(CommandListInterface $command): string
+    public function getActionForCommand(CommandListInterface $command): string
     {
         return match ($command->getLabel()) {
             CommonCommands::EXIT->getLabel() => CloseApplicationAction::class,

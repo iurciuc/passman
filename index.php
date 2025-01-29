@@ -9,7 +9,7 @@ use App\Infrastructure\Encryptor\SodiumEncryptor;
 use App\Infrastructure\Filesystem\EncryptedFilesystem;
 use App\Infrastructure\Filesystem\LocalFilesystem;
 
-require_once __DIR__ . '/autoloader.php';
+require_once __DIR__ . '/vendor/autoload.php';
 
 // not null
 $password = readline('Enter master password: ');
