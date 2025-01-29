@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Application\Action;
 
+use App\Application\Input;
+use App\Application\Output;
 use App\Infrastructure\Adapter\FilesystemPasswordRepository;
 
 readonly class AddNewRecordAction implements InvokableActionInterface
@@ -12,16 +14,13 @@ readonly class AddNewRecordAction implements InvokableActionInterface
         private FilesystemPasswordRepository $passwordsFileService
     ) {}
 
-    public function __invoke(): void
+    public function __invoke(Input $input, Output $output): void
     {
-        // TODO: Move all echo/print statements and readline calls to Input and Output classes
-        // NOTE: Try to make output in one call. Ex: print, table, status(ok, bad request)
-        $login = strtolower(readline('Enter login: '));
-        $password = readline('Enter password: ');
+        $login = strtolower($input->read('Enter login: '));
+        $password = $input->read('Enter password: ');
 
         $this->passwordsFileService->create($login, $password);
 
-        // EX: $output->ok('Password added'); return;
-        echo 'Password added'.PHP_EOL;
+        $output->addLine('Password added');
     }
 }
