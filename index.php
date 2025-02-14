@@ -14,5 +14,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 // not null
 $password = readline('Enter master password: ');
 
-exit((new Application(new FilesystemPasswordRepository(
-    new EncryptedFilesystem(new LocalFilesystem(), new SodiumEncryptor($password)), __DIR__ . '/passwords'), new Router()))->run());
+(new Application(new FilesystemPasswordRepository(
+    new EncryptedFilesystem(new LocalFilesystem(), new SodiumEncryptor($password)), __DIR__ . '/passwords'), new Router()))->run();
+
+exit();
