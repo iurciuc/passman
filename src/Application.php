@@ -26,7 +26,6 @@ readonly class Application
         // 0. Input + Output
         // 1. composer init
         // 2. composer require php-fig/event-dispatcher (PSR-14)
-
         // 3. Write an implementation of EventDispatcher in Component/EventDispatcherFolder
         // 4. Write a listener provider (an array of listener classes/functions that will handle the events)
         // -------------------
